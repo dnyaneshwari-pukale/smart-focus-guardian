@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,48 +9,85 @@
   <title>Smart Focus Guardian · Study dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script type="module" src="js/app.js"></script>
 </head>
+
 <body>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar" aria-label="Main navigation">
       <a class="brand" href="#dashboard" aria-label="Smart Focus Guardian home">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M14 25.5c-1.8-1.5-3-3.8-3-6.4a9 9 0 1 1 18 0c0 2.6-1.2 4.9-3 6.4-.9.8-1.5 1.8-1.7 3H15.7c-.2-1.2-.8-2.2-1.7-3Z"/><path d="M16 32h8m-7 3h6M20 3v3m14 13h-3M9 19H6m24-10-2 2M12 9l2 2"/></svg></span>
-        <span class="brand-copy"><strong>SMART FOCUS</strong><b>GUARDIAN</b><small>Your personal study companion.</small></span>
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40">
+            <path
+              d="M14 25.5c-1.8-1.5-3-3.8-3-6.4a9 9 0 1 1 18 0c0 2.6-1.2 4.9-3 6.4-.9.8-1.5 1.8-1.7 3H15.7c-.2-1.2-.8-2.2-1.7-3Z" />
+            <path d="M16 32h8m-7 3h6M20 3v3m14 13h-3M9 19H6m24-10-2 2M12 9l2 2" />
+          </svg></span>
+        <span class="brand-copy"><strong>SMART FOCUS</strong><b>GUARDIAN</b><small>Your personal study
+            companion.</small></span>
       </a>
       <div class="nav-label">WORKSPACE</div>
       <nav class="nav-list" id="navigation">
-        <button class="nav-item active" data-page="dashboard"><span class="nav-icon" data-icon="grid"></span><span>Dashboard</span></button>
-        <button class="nav-item" data-page="focus"><span class="nav-icon" data-icon="timer"></span><span>Focus Room</span></button>
-        <button class="nav-item" data-page="environment"><span class="nav-icon" data-icon="sun"></span><span>Environment</span></button>
-        <button class="nav-item" data-page="analytics"><span class="nav-icon" data-icon="chart"></span><span>Study Analytics</span></button>
-        <button class="nav-item" data-page="devices"><span class="nav-icon" data-icon="cpu"></span><span>My Devices</span></button>
-        <button class="nav-item" data-page="settings"><span class="nav-icon" data-icon="settings"></span><span>Settings</span></button>
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon"
+            data-icon="grid"></span><span>Dashboard</span></button>
+        <button class="nav-item" data-page="focus"><span class="nav-icon" data-icon="timer"></span><span>Focus
+            Room</span></button>
+        <button class="nav-item" data-page="environment"><span class="nav-icon"
+            data-icon="sun"></span><span>Environment</span></button>
+        <button class="nav-item" data-page="analytics"><span class="nav-icon" data-icon="chart"></span><span>Study
+            Analytics</span></button>
+        <button class="nav-item" data-page="devices"><span class="nav-icon" data-icon="cpu"></span><span>My
+            Devices</span></button>
+        <button class="nav-item" data-page="settings"><span class="nav-icon"
+            data-icon="settings"></span><span>Settings</span></button>
       </nav>
-      <div class="sidebar-note"><span class="note-dot"></span><div><strong>Demo environment</strong><small>Sensor values are illustrative</small></div></div>
-      <div class="sidebar-profile"><span class="avatar">S</span><span class="profile-copy"><strong>Student</strong><small>Demo Account</small></span><button class="icon-button profile-more" data-action="profile-menu" aria-label="Open profile menu"><span data-icon="more"></span></button></div>
+      <div class="sidebar-note"><span class="note-dot"></span>
+        <div><strong>Demo environment</strong><small>Sensor values are illustrative</small></div>
+      </div>
+      <div class="sidebar-profile"><span class="avatar">S</span><span
+          class="profile-copy"><strong>Student</strong><small>Demo Account</small></span><button
+          class="icon-button profile-more" data-action="profile-menu" aria-label="Open profile menu"><span
+            data-icon="more"></span></button></div>
     </aside>
 
     <div class="main-area">
       <header class="topbar">
-        <div class="mobile-brand"><span class="brand-mark mini" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M14 25.5c-1.8-1.5-3-3.8-3-6.4a9 9 0 1 1 18 0c0 2.6-1.2 4.9-3 6.4-.9.8-1.5 1.8-1.7 3H15.7c-.2-1.2-.8-2.2-1.7-3Z"/><path d="M16 32h8m-7 3h6M20 3v3"/></svg></span><strong>Smart Focus</strong></div>
-        <div class="topbar-heading"><div class="eyebrow" id="header-eyebrow">STUDY WORKSPACE</div><h1 id="page-title">Dashboard</h1></div>
+        <div class="mobile-brand"><span class="brand-mark mini" aria-hidden="true"><svg viewBox="0 0 40 40">
+              <path
+                d="M14 25.5c-1.8-1.5-3-3.8-3-6.4a9 9 0 1 1 18 0c0 2.6-1.2 4.9-3 6.4-.9.8-1.5 1.8-1.7 3H15.7c-.2-1.2-.8-2.2-1.7-3Z" />
+              <path d="M16 32h8m-7 3h6M20 3v3" />
+            </svg></span><strong>Smart Focus</strong></div>
+        <div class="topbar-heading">
+          <div class="eyebrow" id="header-eyebrow">STUDY WORKSPACE</div>
+          <h1 id="page-title">Dashboard</h1>
+        </div>
         <div class="topbar-actions">
           <span class="demo-pill"><span></span> DEMO MODE</span>
-          <button class="icon-button notification-button" data-action="notifications" aria-label="View notifications"><span data-icon="bell"></span><i></i></button>
-          <button class="top-profile" data-action="profile-menu" aria-label="Open student profile"><span class="avatar small">S</span><span class="top-profile-name">Student</span><span class="chevron" data-icon="chevron-down"></span></button>
+          <button class="icon-button notification-button" data-action="notifications"
+            aria-label="View notifications"><span data-icon="bell"></span><i></i></button>
+          <button class="top-profile" data-action="profile-menu" aria-label="Open student profile"><span
+              class="avatar small">S</span><span class="top-profile-name">Student</span><span class="chevron"
+              data-icon="chevron-down"></span></button>
         </div>
       </header>
       <main id="page-content" tabindex="-1" aria-live="polite"></main>
-      <footer class="site-footer"><span>Smart Focus Guardian</span><span>Demo interface · No physical hardware connected</span></footer>
+      <footer class="site-footer"><span>Smart Focus Guardian</span><span>Demo interface · No physical hardware
+          connected</span></footer>
     </div>
   </div>
   <nav class="mobile-nav" aria-label="Mobile navigation" id="mobile-navigation"></nav>
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
-  <div class="modal-backdrop" id="modal" hidden><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="icon-button modal-close" data-action="close-modal" aria-label="Close dialog"><span data-icon="close"></span></button><div id="modal-content"></div></section></div>
-  <script>window.addEventListener('DOMContentLoaded', () => document.querySelectorAll('[data-icon]').forEach(el => { if (!el.innerHTML.trim()) el.setAttribute('aria-hidden','true'); }));</script>
+  <div class="modal-backdrop" id="modal" hidden>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button
+        class="icon-button modal-close" data-action="close-modal" aria-label="Close dialog"><span
+          data-icon="close"></span></button>
+      <div id="modal-content"></div>
+    </section>
+  </div>
+  <script>window.addEventListener('DOMContentLoaded', () => document.querySelectorAll('[data-icon]').forEach(el => { if (!el.innerHTML.trim()) el.setAttribute('aria-hidden', 'true'); }));</script>
 </body>
+
 </html>

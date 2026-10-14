@@ -9,3 +9,9 @@
 
 /* The consistency trend follows the two comparison charts as a full-width row. */
 @media(min-width:651px){.consistency-card{grid-column:1/-1}}
+
+/* PIR motion state styling */
+.env-symbol.amber{background:var(--amber-soft);color:#ba831b}
+.dark-theme .env-symbol.amber{background:#413723;color:var(--amber)}
+.motion-demo-actions{margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
