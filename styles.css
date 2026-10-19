@@ -15,3 +15,14 @@
 .dark-theme .env-symbol.amber{background:#413723;color:var(--amber)}
 .motion-demo-actions{margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
+/* Hardware Mode & Command Feedback Badges */
+.demo-pill.hardware span{background:var(--green-700);box-shadow:0 0 0 2px var(--mint)}
+.backend-badge{font-size:9px;font-weight:700;display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+.backend-badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.backend-badge.connected{color:var(--green-700);border-color:#cce4d6;background:var(--mint)}
+.backend-badge.offline{color:var(--red);border-color:var(--red-soft);background:var(--red-soft)}
+.cmd-status-badge{font-size:9px;font-weight:700;padding:3px 7px;border-radius:6px;display:inline-block;margin-top:5px}
+.cmd-status-badge.pending{background:var(--amber-soft);color:#b77b12}
+.cmd-status-badge.acknowledged{background:var(--mint);color:var(--green-700)}
+.cmd-status-badge.failed{background:var(--red-soft);color:var(--red)}
+
