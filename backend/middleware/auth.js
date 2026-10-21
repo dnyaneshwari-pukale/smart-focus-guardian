@@ -1,10 +1,56 @@
 /**
- * Device Authentication Middleware
- * Validates device token for hardware communication endpoints.
+ * Authentication Middleware
+ * Handles user JWT/bearer token verification and hardware device secret token authentication.
  */
 require('dotenv').config();
 const db = require('../config/database');
+const { verifyAuthToken } = require('../utils/authUtils');
 
+/**
+ * Enforces mandatory user authentication via Authorization Bearer header.
+ */
+function authenticateUser(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized: Missing or invalid Authorization Bearer token.'
+    });
+  }
+
+  const token = authHeader.substring(7).trim();
+  const payload = verifyAuthToken(token);
+
+  if (!payload || !payload.userId) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized: Invalid or expired session token. Please sign in again.'
+    });
+  }
+
+  req.user = payload;
+  next();
+}
+
+/**
+ * Optional user authentication: populates req.user if a valid token is passed,
+ * but allows unauthenticated / demo requests to proceed.
+ */
+function optionalUserAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7).trim();
+    const payload = verifyAuthToken(token);
+    if (payload && payload.userId) {
+      req.user = payload;
+    }
+  }
+  next();
+}
+
+/**
+ * Validates device token for hardware communication endpoints.
+ */
 async function authenticateDevice(req, res, next) {
   const token = req.headers['x-device-token'] || 
                 req.headers['authorization']?.replace('Bearer ', '') || 
@@ -14,7 +60,7 @@ async function authenticateDevice(req, res, next) {
   const configuredSecret = process.env.DEVICE_SECRET_TOKEN || 'sfg_device_secret_2026';
 
   // Allow internal requests or demo mode without token if explicitly marked
-  if (req.body.source === 'DEMO' || req.query.source === 'DEMO') {
+  if (req.body && req.body.source === 'DEMO' || req.query && req.query.source === 'DEMO') {
     return next();
   }
 
@@ -43,4 +89,8 @@ async function authenticateDevice(req, res, next) {
   });
 }
 
-module.exports = { authenticateDevice };
+module.exports = {
+  authenticateUser,
+  optionalUserAuth,
+  authenticateDevice
+};

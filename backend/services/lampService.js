@@ -1,23 +1,24 @@
 /**
  * Lamp Command Service
- * Handles asynchronous lamp command dispatch, polling, and acknowledgment.
+ * Handles asynchronous lamp command dispatch, polling, acknowledgment, and history retrieval.
  */
 const db = require('../config/database');
 
-async function createLampCommand({ deviceId, requestedState, brightness = 70, autoMode = false }) {
+async function createLampCommand({ deviceId, userId = null, requestedState, brightness = 70, autoMode = false }) {
   const commandId = `cmd_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const reqState = requestedState === true || requestedState === 1 || requestedState === '1' ? 1 : 0;
   const bri = Math.max(0, Math.min(100, parseInt(brightness, 10) || 70));
   const auto = autoMode === true || autoMode === 1 || autoMode === '1' ? 1 : 0;
 
   await db.query(
-    'INSERT INTO lamp_commands (command_id, device_id, requested_state, brightness, auto_mode, status) VALUES (?, ?, ?, ?, ?, ?)',
-    [commandId, deviceId, reqState, bri, auto, 'PENDING']
+    'INSERT INTO lamp_commands (command_id, device_id, user_id, requested_state, brightness, auto_mode, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [commandId, deviceId, userId || null, reqState, bri, auto, 'PENDING']
   );
 
   return {
     commandId,
     deviceId,
+    userId: userId || null,
     requestedState: reqState === 1,
     brightness: bri,
     autoMode: auto === 1,
@@ -28,12 +29,13 @@ async function createLampCommand({ deviceId, requestedState, brightness = 70, au
 
 async function getPendingCommands(deviceId) {
   const rows = await db.query(
-    "SELECT command_id, device_id, requested_state, brightness, auto_mode, status, created_at FROM lamp_commands WHERE device_id = ? AND status = 'PENDING' ORDER BY created_at ASC",
+    "SELECT command_id, device_id, user_id, requested_state, brightness, auto_mode, status, created_at FROM lamp_commands WHERE device_id = ? AND status = 'PENDING' ORDER BY created_at ASC",
     [deviceId]
   );
   return rows.map(r => ({
     commandId: r.command_id,
     deviceId: r.device_id,
+    userId: r.user_id,
     requestedState: Boolean(r.requested_state),
     brightness: r.brightness,
     autoMode: Boolean(r.auto_mode),
@@ -42,11 +44,30 @@ async function getPendingCommands(deviceId) {
   }));
 }
 
+async function getCommandHistory(deviceId, limit = 20) {
+  const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const rows = await db.query(
+    'SELECT command_id, device_id, user_id, requested_state, brightness, auto_mode, status, created_at, acknowledged_at, failure_reason FROM lamp_commands WHERE device_id = ? ORDER BY created_at DESC LIMIT ?',
+    [deviceId, lim]
+  );
+  return rows.map(r => ({
+    commandId: r.command_id,
+    deviceId: r.device_id,
+    userId: r.user_id,
+    requestedState: Boolean(r.requested_state),
+    brightness: r.brightness,
+    autoMode: Boolean(r.auto_mode),
+    status: r.status,
+    createdAt: r.created_at,
+    acknowledgedAt: r.acknowledged_at,
+    failureReason: r.failure_reason
+  }));
+}
+
 async function acknowledgeCommand(commandId, { success = true, failureReason = null } = {}) {
   const status = success ? 'ACKNOWLEDGED' : 'FAILED';
-  const now = new Date();
 
-  const res = await db.query(
+  await db.query(
     'UPDATE lamp_commands SET status = ?, acknowledged_at = NOW(), failure_reason = ? WHERE command_id = ?',
     [status, failureReason, commandId]
   );
@@ -70,5 +91,6 @@ async function acknowledgeCommand(commandId, { success = true, failureReason = n
 module.exports = {
   createLampCommand,
   getPendingCommands,
+  getCommandHistory,
   acknowledgeCommand
 };

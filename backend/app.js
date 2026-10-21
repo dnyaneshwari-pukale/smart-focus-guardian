@@ -9,6 +9,7 @@ const cors = require('cors');
 
 // Route imports
 const healthRoutes = require('./routes/healthRoutes');
+const authRoutes = require('./routes/authRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const sensorRoutes = require('./routes/sensorRoutes');
 const lampRoutes = require('./routes/lampRoutes');
@@ -19,6 +20,7 @@ const settingsRoutes = require('./routes/settingsRoutes');
 // Middleware imports
 const { errorHandler } = require('./middleware/errorHandler');
 const { generalLimiter } = require('./middleware/rateLimiter');
+const { optionalUserAuth } = require('./middleware/auth');
 
 const app = express();
 
@@ -49,8 +51,12 @@ app.use((req, res, next) => {
 // Apply rate limiting to API routes
 app.use('/api', generalLimiter);
 
+// Optional user auth parser for all API routes
+app.use('/api', optionalUserAuth);
+
 // Mount API Endpoints
 app.use('/api', healthRoutes);
+app.use('/api', authRoutes);
 app.use('/api', deviceRoutes);
 app.use('/api', sensorRoutes);
 app.use('/api', lampRoutes);

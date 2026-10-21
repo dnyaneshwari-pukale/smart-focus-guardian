@@ -1,6 +1,6 @@
 /**
- * Database Initialization Script
- * Runs schema.sql against the configured MySQL server.
+ * Database Initialization and Safe Migration Script
+ * Runs schema.sql and verifies all required tables and columns.
  * Usage: npm run db:init
  */
 require('dotenv').config();
@@ -35,6 +35,28 @@ async function initDatabase() {
 
     console.log(`Executing schema definitions from ${schemaPath}...`);
     await connection.query(sql);
+
+    // Apply safe column additions for existing tables if needed
+    await connection.changeUser({ database });
+
+    const ensureColumn = async (table, column, definition) => {
+      try {
+        const [rows] = await connection.query(
+          `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+          [database, table, column]
+        );
+        if (rows.length === 0) {
+          console.log(`Migrating: Adding column ${column} to table ${table}...`);
+          await connection.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
+        }
+      } catch (colErr) {
+        console.warn(`Column check warning for ${table}.${column}:`, colErr.message);
+      }
+    };
+
+    await ensureColumn('devices', 'user_id', 'VARCHAR(64) NULL');
+    await ensureColumn('study_sessions', 'user_id', 'VARCHAR(64) NULL');
+    await ensureColumn('lamp_commands', 'user_id', 'VARCHAR(64) NULL');
 
     console.log(`Database "${database}" and all tables initialized successfully!`);
   } catch (err) {

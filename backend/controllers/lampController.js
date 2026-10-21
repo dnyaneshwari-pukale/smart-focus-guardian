@@ -1,6 +1,6 @@
 /**
  * Lamp Controller
- * Handles study lamp command dispatch, pending polling, and device acknowledgment.
+ * Handles study lamp command dispatch, pending polling, command history, and device acknowledgment.
  */
 const lampService = require('../services/lampService');
 const deviceService = require('../services/deviceService');
@@ -9,6 +9,7 @@ async function postLampCommand(req, res, next) {
   try {
     const { deviceId } = req.params;
     const { requestedState, lampOn, state, brightness, autoMode } = req.body;
+    const userId = req.user?.userId || null;
 
     const dev = await deviceService.getDeviceById(deviceId);
     if (!dev) {
@@ -28,6 +29,7 @@ async function postLampCommand(req, res, next) {
 
     const command = await lampService.createLampCommand({
       deviceId,
+      userId,
       requestedState: targetState,
       brightness: brightness !== undefined ? brightness : 70,
       autoMode: Boolean(autoMode)
@@ -51,6 +53,21 @@ async function getPendingCommands(req, res, next) {
       success: true,
       count: commands.length,
       data: commands
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getCommandHistory(req, res, next) {
+  try {
+    const { deviceId } = req.params;
+    const limit = parseInt(req.query.limit || '20', 10);
+    const history = await lampService.getCommandHistory(deviceId, limit);
+    res.json({
+      success: true,
+      count: history.length,
+      data: history
     });
   } catch (err) {
     next(err);
@@ -89,5 +106,6 @@ async function ackLampCommand(req, res, next) {
 module.exports = {
   postLampCommand,
   getPendingCommands,
+  getCommandHistory,
   ackLampCommand
 };
