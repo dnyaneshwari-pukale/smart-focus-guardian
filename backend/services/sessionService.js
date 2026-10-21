@@ -6,6 +6,7 @@ const db = require('../config/database');
 
 async function saveSession({
   sessionId,
+  userId = null,
   sessionType = 'focus',
   plannedDurationMin = 25,
   actualDurationMin = 25,
@@ -25,6 +26,7 @@ async function saveSession({
     const s = existing[0];
     return {
       sessionId: s.session_id,
+      userId: s.user_id,
       sessionType: s.session_type,
       plannedDurationMin: s.planned_duration_min,
       actualDurationMin: s.actual_duration_min,
@@ -47,9 +49,10 @@ async function saveSession({
   const end = endTime ? new Date(endTime) : new Date();
 
   await db.query(
-    'INSERT INTO study_sessions (session_id, session_type, planned_duration_min, actual_duration_min, start_time, end_time, completion_status, motion_events_count, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO study_sessions (session_id, user_id, session_type, planned_duration_min, actual_duration_min, start_time, end_time, completion_status, motion_events_count, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       sessionId,
+      userId || null,
       type,
       planned,
       actual,
@@ -63,6 +66,7 @@ async function saveSession({
 
   return {
     sessionId,
+    userId: userId || null,
     sessionType: type,
     plannedDurationMin: planned,
     actualDurationMin: actual,
@@ -75,12 +79,20 @@ async function saveSession({
   };
 }
 
-async function getAllSessions(limit = 100) {
+async function getAllSessions(limit = 100, userId = null) {
   const lim = Math.min(500, Math.max(1, parseInt(limit, 10) || 100));
-  const rows = await db.query(
-    'SELECT * FROM study_sessions ORDER BY start_time DESC LIMIT ?',
-    [lim]
-  );
+  let rows;
+  if (userId) {
+    rows = await db.query(
+      'SELECT * FROM study_sessions WHERE user_id = ? OR user_id IS NULL ORDER BY start_time DESC LIMIT ?',
+      [userId, lim]
+    );
+  } else {
+    rows = await db.query(
+      'SELECT * FROM study_sessions ORDER BY start_time DESC LIMIT ?',
+      [lim]
+    );
+  }
   return rows.map(s => ({
     id: s.id,
     sessionId: s.session_id,

@@ -171,8 +171,8 @@ ALTER TABLE `lamp_commands` ADD COLUMN IF NOT EXISTS `user_id` VARCHAR(64) NULL;
 -- Demo User: Student Demo (password: password123)
 INSERT INTO `users` (`user_id`, `name`, `email`, `password_hash`, `avatar_initial`)
 VALUES
-  ('usr_demo_001', 'Student Demo', 'demo@smartfocusguardian.local', '7f96f2caf892f24987dc8a5b881d756e:3b1e1ddfd6004eadb5d4ea195bb96c14a4ba402ccbd1fa93a7a8925f10e53eb28a2f02a50d2b1441ba9b500fd2bda43a60a69a231949c8cfb20611fccfc4da10', 'S')
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+  ('usr_demo_001', 'Student Demo', 'demo@smartfocusguardian.local', '$2b$10$LnSGkMIFi531w/O4NerqNuRPYFWQx70l3Ke0tDzrcAl42Pq1z98ha', 'S')
+ON DUPLICATE KEY UPDATE `password_hash` = VALUES(`password_hash`), `name` = VALUES(`name`);
 
 INSERT INTO `profiles` (`user_id`, `display_name`, `focus_duration`, `short_break`, `long_break`, `sessions_before_long_break`, `auto_start`, `sound_enabled`, `notifications_enabled`, `auto_lamp`, `ldr_threshold`, `theme`)
 VALUES

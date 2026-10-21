@@ -119,6 +119,7 @@ smart-focus-guardian/
 │   │   └── settingsRoutes.js       # GET/PUT /api/settings
 │   ├── controllers/
 │   │   ├── healthController.js
+│   │   ├── authController.js       # User registration, login, logout, profile
 │   │   ├── deviceController.js
 │   │   ├── sensorController.js
 │   │   ├── lampController.js
@@ -126,14 +127,24 @@ smart-focus-guardian/
 │   │   ├── analyticsController.js
 │   │   └── settingsController.js
 │   ├── services/
+│   │   ├── userService.js          # User registration, bcrypt verification, profiles
 │   │   ├── deviceService.js
 │   │   ├── sensorService.js
 │   │   ├── lampService.js
 │   │   ├── sessionService.js
 │   │   ├── analyticsService.js
 │   │   └── settingsService.js
+│   ├── routes/
+│   │   ├── authRoutes.js           # Authentication API routes
+│   │   ├── healthRoutes.js
+│   │   ├── deviceRoutes.js
+│   │   ├── sensorRoutes.js
+│   │   ├── lampRoutes.js
+│   │   ├── sessionRoutes.js
+│   │   ├── analyticsRoutes.js
+│   │   └── settingsRoutes.js
 │   ├── middleware/
-│   │   ├── auth.js                 # Device token authentication middleware
+│   │   ├── auth.js                 # User JWT & device secret authentication
 │   │   ├── errorHandler.js         # Centralized API error handling
 │   │   └── rateLimiter.js          # Rate limiters for general & device traffic
 │   ├── sql/
@@ -142,23 +153,26 @@ smart-focus-guardian/
 │   ├── firmware/
 │   │   └── smart_focus_guardian.ino# Arduino IDE firmware for NodeMCU ESP8266
 │   ├── utils/
+│   │   ├── authUtils.js            # Bcrypt hashing, session token crypto, email check
 │   │   └── deviceSimulator.js      # Software ESP8266 hardware simulator script
 │   └── tests/
-│       └── api.test.js             # Automated API test suite (24 tests)
+│       └── api.test.js             # Automated API test suite (32 tests)
 ```
 
 ---
 
 ## 5. Database Architecture & Schema
 
-The application uses 6 normalized tables defined in [`backend/sql/schema.sql`](backend/sql/schema.sql):
+The application uses 8 normalized tables defined in [`backend/sql/schema.sql`](backend/sql/schema.sql):
 
-1. **`devices`**: Tracks physical and demo NodeMCU ESP8266 units, registration dates, firmware versions, authentication secrets, and `last_seen` heartbeats.
-2. **`sensor_readings`**: Stores periodic PIR digital state (0/1), LDR relative index (0–100), lighting category (DIM, ADEQUATE, BRIGHT), and lamp state. *Does not contain distance columns.*
-3. **`motion_events`**: Stores motion state-transitions (`MOTION_DETECTED`) with a 10-second deduplication threshold to prevent flooding the database with redundant entries.
-4. **`lamp_commands`**: Implements asynchronous decoupled command dispatch. Tracks requested state, brightness, auto-mode, created timestamp, acknowledgment timestamp, and failure reasons (`PENDING` -> `ACKNOWLEDGED` / `FAILED`).
-5. **`study_sessions`**: Records Pomodoro blocks (planned duration, actual duration, start time, end time, completion status, motion trigger count, and source). Uses unique `session_id` to prevent duplicate insertions on page reloads.
-6. **`settings`**: Key-value preference store for focus duration, break durations, auto-start, buzzer sound, auto-lamp threshold, and system mode.
+1. **`users`**: Secure user accounts with `user_id`, `name`, `email` (unique index), bcrypt password hash (`password_hash`), avatar initial, and timestamps.
+2. **`profiles`**: User-specific study preferences (focus duration, break lengths, auto-start, sound chime, notifications, auto-lamp, and UI theme).
+3. **`devices`**: Tracks physical and demo NodeMCU ESP8266 units, optional `user_id` ownership, registration dates, firmware versions, authentication secrets, and `last_seen` heartbeats.
+4. **`sensor_readings`**: Stores periodic PIR digital state (0/1), LDR relative index (0–100), lighting category (DIM, ADEQUATE, BRIGHT), and lamp state. *Does not contain distance columns.*
+5. **`motion_events`**: Stores motion state-transitions (`MOTION_DETECTED`) with a 10-second deduplication threshold to prevent flooding the database with redundant entries.
+6. **`lamp_commands`**: Implements asynchronous decoupled command dispatch. Tracks requested state, brightness, auto-mode, created timestamp, acknowledgment timestamp, and failure reasons (`PENDING` -> `ACKNOWLEDGED` / `FAILED`).
+7. **`study_sessions`**: Records Pomodoro blocks (planned duration, actual duration, start time, end time, completion status, motion trigger count, user ownership, and source). Uses unique `session_id` to prevent duplicate insertions on page reloads.
+8. **`settings`**: System-wide fallback key-value preference store for timer, hardware thresholds, and default modes.
 
 > **Zero-Setup In-Memory Mode:** If MySQL is not running, the application automatically falls back to an in-memory database store. The app and demo mode will work immediately without throwing fatal errors.
 
@@ -356,6 +370,17 @@ All endpoints return structured JSON with consistent `success`, `data`, and `err
 - `GET /api/health`
   - Returns server uptime, version, and MySQL connection status.
 
+### Authentication & User Profiles
+- `POST /api/auth/register` — Register a student account (`{ "name": "Jane Doe", "email": "jane@example.com", "password": "password123" }`). Hashes password with bcrypt before storing in MySQL. Sets secure `sfg_token` HttpOnly cookie.
+- `POST /api/auth/login` — Authenticate with email & password (`{ "email": "...", "password": "..." }`). Returns user object, token, and sets `sfg_token` cookie.
+- `POST /api/auth/logout` — Invalidate user session and clear `sfg_token` cookie.
+- `GET /api/auth/me` — Retrieve authenticated user profile (via HttpOnly cookie or `Authorization: Bearer <token>`).
+- `PUT /api/auth/profile` — Update user profile and study settings (`focusDuration`, `shortBreak`, `theme`).
+
+**Default Demo Student Account:**
+- Email: `demo@smartfocusguardian.local`
+- Password: `password123`
+
 ### Device Management
 - `GET /api/devices` — List all registered devices.
 - `GET /api/devices/:deviceId` — Retrieve details for a specific device.
@@ -398,7 +423,7 @@ All endpoints return structured JSON with consistent `success`, `data`, and `err
 
 ## 11. Testing & Verification
 
-The project includes an automated test suite with **24 comprehensive integration tests** using Node.js's native test runner (`node:test`) and `supertest`.
+The project includes an automated test suite with **32 comprehensive integration tests** using Node.js's native test runner (`node:test`) and `supertest`.
 
 ### Running the Test Suite
 ```powershell
@@ -432,7 +457,15 @@ cmd /c npm test
   ✔ PATCH /api/sessions/:sessionId - updates session status and actual duration
   ✔ POST /api/sessions/:sessionId/complete - completes or creates session
   ✔ GET /api/analytics/daily and /api/analytics/weekly - derives aggregated study statistics
-✔ Smart Focus Guardian - API Test Suite (24 tests, 24 pass, 0 fail)
+  ✔ POST /api/auth/register - registers new user, hashes password, and issues auth cookie
+  ✔ POST /api/auth/register - rejects duplicate email with 409 Conflict
+  ✔ POST /api/auth/login - authenticates registered user and issues session token
+  ✔ POST /api/auth/login - authenticates seeded demo user (demo@smartfocusguardian.local)
+  ✔ POST /api/auth/login - rejects invalid password with 401 Unauthorized
+  ✔ GET /api/auth/me - rejects unauthenticated request with 401
+  ✔ GET /api/auth/me - returns user profile with Bearer authorization header
+  ✔ POST /api/auth/logout - clears authentication cookie
+✔ Smart Focus Guardian - API Test Suite (32 tests, 32 pass, 0 fail)
 ```
 
 ---

@@ -6,21 +6,33 @@ require('dotenv').config();
 const db = require('../config/database');
 const { verifyAuthToken } = require('../utils/authUtils');
 
+function extractUserToken(req) {
+  if (req.cookies && req.cookies.sfg_token) {
+    return req.cookies.sfg_token;
+  }
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+  if (req.headers && req.headers['x-auth-token']) {
+    return req.headers['x-auth-token'];
+  }
+  return null;
+}
+
 /**
- * Enforces mandatory user authentication via Authorization Bearer header.
+ * Enforces mandatory user authentication via cookie or Authorization header.
  */
 function authenticateUser(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const token = extractUserToken(req);
+  if (!token) {
     return res.status(401).json({
       success: false,
-      error: 'Unauthorized: Missing or invalid Authorization Bearer token.'
+      error: 'Unauthorized: Authentication required. Please sign in.'
     });
   }
 
-  const token = authHeader.substring(7).trim();
   const payload = verifyAuthToken(token);
-
   if (!payload || !payload.userId) {
     return res.status(401).json({
       success: false,
@@ -37,9 +49,8 @@ function authenticateUser(req, res, next) {
  * but allows unauthenticated / demo requests to proceed.
  */
 function optionalUserAuth(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7).trim();
+  const token = extractUserToken(req);
+  if (token) {
     const payload = verifyAuthToken(token);
     if (payload && payload.userId) {
       req.user = payload;

@@ -5,12 +5,20 @@
 const userService = require('../services/userService');
 const { generateAuthToken } = require('../utils/authUtils');
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
+
 async function register(req, res, next) {
   try {
-    const { name, email, password } = req.body;
-    const user = await userService.registerUser({ name, email, password });
+    const { name, fullName, email, password } = req.body;
+    const user = await userService.registerUser({ name: name || fullName, email, password });
     const token = generateAuthToken({ userId: user.userId, email: user.email, name: user.name });
 
+    res.cookie('sfg_token', token, COOKIE_OPTIONS);
     res.status(201).json({
       success: true,
       message: 'User registered successfully.',
@@ -33,6 +41,7 @@ async function login(req, res, next) {
     const user = await userService.authenticateUser({ email, password });
     const token = generateAuthToken({ userId: user.userId, email: user.email, name: user.name });
 
+    res.cookie('sfg_token', token, COOKIE_OPTIONS);
     res.json({
       success: true,
       message: 'Login successful.',
@@ -50,6 +59,8 @@ async function login(req, res, next) {
 }
 
 async function logout(req, res) {
+  const { maxAge, ...clearOptions } = COOKIE_OPTIONS;
+  res.clearCookie('sfg_token', clearOptions);
   res.json({
     success: true,
     message: 'Logged out successfully.'

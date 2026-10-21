@@ -1,5 +1,5 @@
 import { demoSensorSnapshot, sampleWeek, sampleHistory, sampleActivities, sensorHistory } from './demo-data.js';
-import { API, API_CONFIG, setApiBaseUrl } from './api.js';
+import { API, API_CONFIG, setApiBaseUrl, setUserToken, clearUserToken } from './api.js';
 
 const DEFAULTS = {
   focus: 25,
@@ -16,6 +16,7 @@ const DEFAULTS = {
 };
 
 const KEYS = {
+  user: 'sfg.user.v1',
   prefs: 'sfg.preferences.v1',
   timer: 'sfg.timer.v1',
   devices: 'sfg.devices.v1',
@@ -31,7 +32,9 @@ const PAGE_META = {
   environment: ['Environment', 'ROOM CONDITIONS', 'Real-time sensor readings and lamp controls.'],
   analytics: ['Study Analytics', 'YOUR PROGRESS', 'Understand your routine with verified session statistics.'],
   devices: ['My Devices', 'DEVICE MANAGEMENT', 'Manage registered NodeMCU ESP8266 devices.'],
-  settings: ['Settings', 'PREFERENCES', 'Configure timer, lighting thresholds, and hardware integration.']
+  settings: ['Settings', 'PREFERENCES', 'Configure timer, lighting thresholds, and hardware integration.'],
+  login: ['Sign In', 'STUDENT ACCESS', 'Sign in to access your personal study workspace and devices.'],
+  register: ['Create Account', 'GET STARTED', 'Join Smart Focus Guardian to save your study progress.']
 };
 
 const ICONS = {
@@ -65,7 +68,12 @@ const ICONS = {
   history: '<path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   motion: '<path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14M16.24 7.76a6 6 0 0 1 0 8.48M7.76 7.76a6 6 0 0 0 0 8.48"/>',
-  buzzer: '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>'
+  buzzer: '<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24m-2.12-5.66A9.97 9.97 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/>',
+  user: '<circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  logOut: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9"/>'
 };
 
 const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.info}</svg>`;
@@ -80,6 +88,7 @@ const storedSystemMode = localStorage.getItem(KEYS.systemMode) || storedPrefs.sy
 
 export const state = {
   page: 'dashboard',
+  user: readJSON(KEYS.user, null),
   systemMode: storedSystemMode, // 'demo' | 'hardware'
   backend: {
     connected: false,
@@ -190,6 +199,28 @@ function updateHeader() {
       backendBadge.title = `Cannot reach API at ${API_CONFIG.baseUrl}. Operating in offline client mode.`;
     }
   }
+
+  // Update student profile indicators in topbar and sidebar
+  const userName = state.user?.name || state.user?.fullName || 'Student';
+  const userEmail = state.user?.email || 'Demo Account';
+  const userInitial = (userName.charAt(0) || 'S').toUpperCase();
+
+  const topProfileName = document.querySelector('.top-profile-name');
+  if (topProfileName) topProfileName.textContent = state.user ? userName : 'Student';
+  const topAvatar = document.querySelector('.top-profile .avatar');
+  if (topAvatar) topAvatar.textContent = userInitial;
+
+  const sideAvatar = document.querySelector('.sidebar-profile .avatar');
+  if (sideAvatar) sideAvatar.textContent = userInitial;
+  const sideCopyStrong = document.querySelector('.sidebar-profile .profile-copy strong');
+  if (sideCopyStrong) sideCopyStrong.textContent = userName;
+  const sideCopySmall = document.querySelector('.sidebar-profile .profile-copy small');
+  if (sideCopySmall) sideCopySmall.textContent = state.user ? userEmail : 'Demo Account';
+
+  const navAuthLabel = document.getElementById('nav-auth-label');
+  if (navAuthLabel) {
+    navAuthLabel.textContent = state.user ? 'Account' : 'Sign In';
+  }
 }
 
 function renderNavIcons() {
@@ -216,6 +247,9 @@ function renderMobileNav() {
 function navigate(page) {
   if (!PAGE_META[page]) return;
   state.page = page;
+  if (location.hash !== `#${page}`) {
+    history.pushState(null, '', `#${page}`);
+  }
   updateHeader();
   renderMobileNav();
   renderCurrentPage();
@@ -819,6 +853,121 @@ function settingsPage() {
   </div>`;
 }
 
+function showFormAlert(elementId, message, type = 'error') {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.className = `form-alert ${type}`;
+  el.innerHTML = `${icon(type === 'error' ? 'info' : 'check')}<span>${escapeHTML(message)}</span>`;
+  el.style.display = 'flex';
+}
+
+function loginPage() {
+  return `<div class="auth-wrapper">
+    <article class="auth-card">
+      <div class="auth-head">
+        <div class="auth-icon">${icon('lock')}</div>
+        <h2>Welcome Back</h2>
+        <p>Sign in to sync your study timer, room sensors, and verified analytics.</p>
+      </div>
+
+      <form id="login-form" class="auth-form" novalidate>
+        <div id="login-alert" class="form-alert error" style="display:none" role="alert"></div>
+
+        <div class="auth-field">
+          <label for="login-email">Email Address</label>
+          <div class="password-wrap">
+            <input type="email" id="login-email" name="email" class="form-control" style="width:100%" placeholder="student@example.com" required autocomplete="email">
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="login-password">Password</label>
+          <div class="password-wrap">
+            <input type="password" id="login-password" name="password" class="form-control" style="width:100%" placeholder="Enter your password" required autocomplete="current-password">
+            <button type="button" class="password-toggle" data-action="toggle-pwd" data-target="login-password" aria-label="Toggle password visibility">
+              ${icon('eye')}
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="login-submit-btn" class="btn btn-primary btn-wide" style="padding:12px">
+          ${icon('user')} Sign In
+        </button>
+
+        <div class="demo-quick-box">
+          <div>
+            <strong>Demo Student Account</strong>
+            <small>demo@smartfocusguardian.local / password123</small>
+          </div>
+          <button type="button" class="btn btn-sm" data-action="fill-demo-login">Auto-fill</button>
+        </div>
+
+        <div class="auth-footer">
+          Don't have an account? <button type="button" class="link-btn" data-page="register">Create an account</button>
+        </div>
+      </form>
+    </article>
+  </div>`;
+}
+
+function registerPage() {
+  return `<div class="auth-wrapper">
+    <article class="auth-card">
+      <div class="auth-head">
+        <div class="auth-icon">${icon('user')}</div>
+        <h2>Create Account</h2>
+        <p>Join Smart Focus Guardian to save your study sessions, devices, and preferences.</p>
+      </div>
+
+      <form id="register-form" class="auth-form" novalidate>
+        <div id="register-alert" class="form-alert error" style="display:none" role="alert"></div>
+
+        <div class="auth-field">
+          <label for="reg-name">Full Name</label>
+          <div class="password-wrap">
+            <input type="text" id="reg-name" name="fullName" class="form-control" style="width:100%" placeholder="e.g. Alex Johnson" required autocomplete="name">
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="reg-email">Email Address</label>
+          <div class="password-wrap">
+            <input type="email" id="reg-email" name="email" class="form-control" style="width:100%" placeholder="student@example.com" required autocomplete="email">
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="reg-password">Password</label>
+          <div class="password-wrap">
+            <input type="password" id="reg-password" name="password" class="form-control" style="width:100%" placeholder="At least 6 characters" required autocomplete="new-password">
+            <button type="button" class="password-toggle" data-action="toggle-pwd" data-target="reg-password" aria-label="Toggle password visibility">
+              ${icon('eye')}
+            </button>
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <label for="reg-confirm">Confirm Password</label>
+          <div class="password-wrap">
+            <input type="password" id="reg-confirm" name="confirmPassword" class="form-control" style="width:100%" placeholder="Re-type your password" required autocomplete="new-password">
+            <button type="button" class="password-toggle" data-action="toggle-pwd" data-target="reg-confirm" aria-label="Toggle password visibility">
+              ${icon('eye')}
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="register-submit-btn" class="btn btn-primary btn-wide" style="padding:12px">
+          ${icon('check')} Register Account
+        </button>
+
+        <div class="auth-footer">
+          Already have an account? <button type="button" class="link-btn" data-page="login">Sign in here</button>
+        </div>
+      </form>
+    </article>
+  </div>`;
+}
+
 function renderCurrentPage() {
   for (const chart of Object.values(state.charts)) chart?.destroy?.();
   state.charts = {};
@@ -829,7 +978,9 @@ function renderCurrentPage() {
     environment: environmentPage,
     analytics: analyticsPage,
     devices: devicesPage,
-    settings: settingsPage
+    settings: settingsPage,
+    login: loginPage,
+    register: registerPage
   };
 
   const html = renderers[state.page]();
@@ -1368,21 +1519,74 @@ function closeModal() {
 }
 
 function renderProfileModal() {
-  openModal(`
-    <h2 id="modal-title">Student Profile</h2>
-    <p>Local study profile connected to Smart Focus Guardian.</p>
-    <div class="modal-detail">
-      <div><small>Account</small><strong>Student</strong></div>
-      <div><small>Current Mode</small><strong>${state.systemMode === 'hardware' ? 'Hardware Mode' : 'Demo Mode'}</strong></div>
-      <div><small>Backend Status</small><strong>${state.backend.connected ? 'Connected' : 'Offline'}</strong></div>
-      <div><small>Registered Lamp</small><strong>${escapeHTML(state.device.id)}</strong></div>
-    </div>
-    <button class="btn btn-primary" data-action="close-modal">Done</button>
-  `);
+  if (state.user) {
+    const userName = state.user.name || state.user.fullName || 'Student';
+    openModal(`
+      <h2 id="modal-title">${escapeHTML(userName)}</h2>
+      <p>Logged in to Smart Focus Guardian.</p>
+      <div class="modal-detail">
+        <div><small>Email</small><strong>${escapeHTML(state.user.email || 'N/A')}</strong></div>
+        <div><small>Account ID</small><strong>${escapeHTML(state.user.userId || state.user.id || 'Active')}</strong></div>
+        <div><small>Current Mode</small><strong>${state.systemMode === 'hardware' ? 'Hardware Mode' : 'Demo Mode'}</strong></div>
+        <div><small>Database Status</small><strong>${state.backend.connected ? 'Connected (' + state.backend.mode + ')' : 'Offline'}</strong></div>
+        <div><small>Registered Lamp</small><strong>${escapeHTML(state.device.id)}</strong></div>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:16px">
+        <button class="btn btn-danger" data-action="logout" style="flex:1">${icon('logOut')} Sign Out</button>
+        <button class="btn btn-primary" data-action="close-modal">Done</button>
+      </div>
+    `);
+  } else {
+    openModal(`
+      <h2 id="modal-title">Student Profile</h2>
+      <p>You are currently browsing as a guest / demo student.</p>
+      <div class="modal-detail">
+        <div><small>Account Status</small><strong>Guest / Demo</strong></div>
+        <div><small>Current Mode</small><strong>${state.systemMode === 'hardware' ? 'Hardware Mode' : 'Demo Mode'}</strong></div>
+        <div><small>Backend Status</small><strong>${state.backend.connected ? 'Connected (' + state.backend.mode + ')' : 'Offline'}</strong></div>
+        <div><small>Registered Lamp</small><strong>${escapeHTML(state.device.id)}</strong></div>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:16px">
+        <button class="btn btn-primary" data-page="login" style="flex:1">${icon('user')} Sign In</button>
+        <button class="btn" data-page="register" style="flex:1">Register</button>
+      </div>
+    `);
+  }
 }
 
 function clickAction(action, el) {
   switch (action) {
+    case 'toggle-pwd': {
+      const targetId = el.dataset.target;
+      const input = document.getElementById(targetId);
+      if (input) {
+        const isPwd = input.type === 'password';
+        input.type = isPwd ? 'text' : 'password';
+        el.innerHTML = icon(isPwd ? 'eyeOff' : 'eye');
+      }
+      break;
+    }
+    case 'fill-demo-login': {
+      const emailInput = document.getElementById('login-email');
+      const pwdInput = document.getElementById('login-password');
+      if (emailInput && pwdInput) {
+        emailInput.value = 'demo@smartfocusguardian.local';
+        pwdInput.value = 'password123';
+        toast('Demo credentials auto-filled.');
+      }
+      break;
+    }
+    case 'logout': {
+      closeModal();
+      API.logout().catch(() => {});
+      clearUserToken();
+      state.user = null;
+      localStorage.removeItem(KEYS.user);
+      updateHeader();
+      toast('Signed out successfully.', 'info');
+      navigate('login');
+      break;
+    }
     case 'timer-toggle':
       state.timer.running ? pauseTimer() : startTimer();
       break;
@@ -1548,6 +1752,10 @@ document.addEventListener('click', e => {
   if (pageButton) {
     e.preventDefault();
     closeModal();
+    if (pageButton.dataset.page === 'login' && state.user) {
+      renderProfileModal();
+      return;
+    }
     navigate(pageButton.dataset.page);
     return;
   }
@@ -1603,6 +1811,112 @@ document.addEventListener('input', e => {
 });
 
 document.addEventListener('submit', async e => {
+  if (e.target.id === 'login-form') {
+    e.preventDefault();
+    const alertBox = document.getElementById('login-alert');
+    if (alertBox) alertBox.style.display = 'none';
+
+    const form = new FormData(e.target);
+    const email = String(form.get('email') || '').trim();
+    const password = String(form.get('password') || '');
+
+    if (!email) {
+      showFormAlert('login-alert', 'Please enter your email address.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showFormAlert('login-alert', 'Please enter a valid email address.');
+      return;
+    }
+    if (!password) {
+      showFormAlert('login-alert', 'Please enter your password.');
+      return;
+    }
+
+    const submitBtn = document.getElementById('login-submit-btn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Signing in...'; }
+
+    try {
+      const res = await API.login({ email, password });
+      if (!res.ok) {
+        showFormAlert('login-alert', res.error || 'Invalid email or password.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${icon('user')} Sign In`; }
+        return;
+      }
+
+      state.user = res.data.user;
+      store(KEYS.user, state.user);
+      if (res.data.token) {
+        setUserToken(res.data.token);
+      }
+
+      toast(`Welcome back, ${state.user.name || 'Student'}!`);
+      updateHeader();
+      refreshAllServerData();
+      navigate('dashboard');
+    } catch (err) {
+      showFormAlert('login-alert', 'Connection error. Please verify backend server.');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${icon('user')} Sign In`; }
+    }
+    return;
+  }
+
+  if (e.target.id === 'register-form') {
+    e.preventDefault();
+    const alertBox = document.getElementById('register-alert');
+    if (alertBox) alertBox.style.display = 'none';
+
+    const form = new FormData(e.target);
+    const fullName = String(form.get('fullName') || '').trim();
+    const email = String(form.get('email') || '').trim();
+    const password = String(form.get('password') || '');
+    const confirmPassword = String(form.get('confirmPassword') || '');
+
+    if (!fullName || fullName.length < 2) {
+      showFormAlert('register-alert', 'Full name must be at least 2 characters.');
+      return;
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showFormAlert('register-alert', 'Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      showFormAlert('register-alert', 'Password must be at least 6 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      showFormAlert('register-alert', 'Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    const submitBtn = document.getElementById('register-submit-btn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating account...'; }
+
+    try {
+      const res = await API.register({ name: fullName, fullName, email, password });
+      if (!res.ok) {
+        showFormAlert('register-alert', res.error || 'Registration failed. Please try again.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${icon('check')} Register Account`; }
+        return;
+      }
+
+      state.user = res.data.user;
+      store(KEYS.user, state.user);
+      if (res.data.token) {
+        setUserToken(res.data.token);
+      }
+
+      toast('Account created successfully! Welcome to Smart Focus Guardian.');
+      updateHeader();
+      refreshAllServerData();
+      navigate('dashboard');
+    } catch (err) {
+      showFormAlert('register-alert', 'Connection error. Please try again.');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${icon('check')} Register Account`; }
+    }
+    return;
+  }
+
   if (e.target.id !== 'device-form') return;
   e.preventDefault();
   const form = new FormData(e.target);
@@ -1767,10 +2081,39 @@ async function refreshAnalyticsData() {
   } catch (e) {}
 }
 
+async function checkAuthSession() {
+  try {
+    const res = await API.getMe();
+    if (res.ok && res.data) {
+      state.user = res.data;
+      store(KEYS.user, state.user);
+      updateHeader();
+    } else if (res.status === 401 && state.user) {
+      state.user = null;
+      store(KEYS.user, null);
+      clearUserToken();
+      updateHeader();
+    }
+  } catch (e) {}
+}
+
 function init() {
   state.timer.completed = Number(state.timer.completed) || 0;
   state.timer.cycle = Number(state.timer.cycle) || 1;
   if (!Number.isFinite(state.timer.remainingMs)) state.timer.remainingMs = timerModeDuration();
+
+  // Read initial page from URL hash if provided
+  const initialHash = (location.hash || '').replace('#', '').trim();
+  if (initialHash && PAGE_META[initialHash]) {
+    state.page = initialHash;
+  }
+
+  window.addEventListener('hashchange', () => {
+    const h = (location.hash || '').replace('#', '').trim();
+    if (h && PAGE_META[h] && h !== state.page) {
+      navigate(h);
+    }
+  });
 
   renderNavIcons();
   applyTheme();
@@ -1779,6 +2122,9 @@ function init() {
   renderCurrentPage();
   recoverTimer();
   ensureTimerInterval();
+
+  // Verify authentication session with backend
+  checkAuthSession();
 
   // Initial backend check and background polling
   pollBackendStatus();

@@ -6,7 +6,8 @@ const sessionService = require('../services/sessionService');
 
 async function getSessions(req, res, next) {
   try {
-    const sessions = await sessionService.getAllSessions(req.query.limit);
+    const userId = req.user?.userId || null;
+    const sessions = await sessionService.getAllSessions(req.query.limit, userId);
     res.json({ success: true, count: sessions.length, data: sessions });
   } catch (err) {
     next(err);
@@ -40,9 +41,11 @@ async function createSession(req, res, next) {
     } = req.body;
 
     const id = sessionId || `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const userId = req.user?.userId || null;
 
     const saved = await sessionService.saveSession({
       sessionId: id,
+      userId,
       sessionType,
       plannedDurationMin,
       actualDurationMin,

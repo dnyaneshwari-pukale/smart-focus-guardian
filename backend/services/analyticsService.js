@@ -4,8 +4,13 @@
  */
 const db = require('../config/database');
 
-async function getSummary() {
-  const sessions = await db.query('SELECT * FROM study_sessions WHERE completion_status = "COMPLETED"');
+async function getSummary(userId = null) {
+  let sessions;
+  if (userId) {
+    sessions = await db.query('SELECT * FROM study_sessions WHERE completion_status = "COMPLETED" AND (user_id = ? OR user_id IS NULL)', [userId]);
+  } else {
+    sessions = await db.query('SELECT * FROM study_sessions WHERE completion_status = "COMPLETED"');
+  }
   const todayStr = new Date().toISOString().slice(0, 10);
 
   let totalFocusMinutes = 0;
@@ -54,8 +59,13 @@ async function getSummary() {
   };
 }
 
-async function getDailyActivity(days = 7) {
-  const sessions = await db.query('SELECT * FROM study_sessions ORDER BY start_time ASC');
+async function getDailyActivity(days = 7, userId = null) {
+  let sessions;
+  if (userId) {
+    sessions = await db.query('SELECT * FROM study_sessions WHERE user_id = ? OR user_id IS NULL ORDER BY start_time ASC', [userId]);
+  } else {
+    sessions = await db.query('SELECT * FROM study_sessions ORDER BY start_time ASC');
+  }
   const dailyMap = {};
 
   for (const s of sessions) {
@@ -82,8 +92,8 @@ async function getDailyActivity(days = 7) {
   return Object.values(dailyMap).slice(-days);
 }
 
-async function getWeeklyActivity() {
-  const daily = await getDailyActivity(7);
+async function getWeeklyActivity(userId = null) {
+  const daily = await getDailyActivity(7, userId);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return daily.map(d => {

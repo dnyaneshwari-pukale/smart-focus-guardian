@@ -31,7 +31,7 @@ const inMemoryStore = {
       user_id: 'usr_demo_001',
       name: 'Student Demo',
       email: 'demo@smartfocusguardian.local',
-      password_hash: '7f96f2caf892f24987dc8a5b881d756e:3b1e1ddfd6004eadb5d4ea195bb96c14a4ba402ccbd1fa93a7a8925f10e53eb28a2f02a50d2b1441ba9b500fd2bda43a60a69a231949c8cfb20611fccfc4da10',
+      password_hash: '$2b$10$LnSGkMIFi531w/O4NerqNuRPYFWQx70l3Ke0tDzrcAl42Pq1z98ha',
       avatar_initial: 'S',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()

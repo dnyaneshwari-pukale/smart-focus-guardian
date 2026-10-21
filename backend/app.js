@@ -6,6 +6,7 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 // Route imports
 const healthRoutes = require('./routes/healthRoutes');
@@ -26,13 +27,15 @@ const app = express();
 
 // Security & Cross-Origin Resource Sharing
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: process.env.CORS_ORIGIN || true,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-device-token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-device-token', 'x-auth-token']
 };
 app.use(cors(corsOptions));
 
 // Parsing middleware
+app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

@@ -26,3 +26,43 @@
 .cmd-status-badge.acknowledged{background:var(--mint);color:var(--green-700)}
 .cmd-status-badge.failed{background:var(--red-soft);color:var(--red)}
 
+/* ====================================================================
+   Authentication Pages & Components (Login & Registration)
+   ==================================================================== */
+.auth-wrapper{max-width:460px;margin:20px auto 40px;animation:auth-fade-in .25s ease-out}
+@keyframes auth-fade-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.auth-card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:34px 36px;box-shadow:var(--shadow)}
+.auth-head{text-align:center;margin-bottom:26px}
+.auth-icon{width:52px;height:52px;border-radius:16px;background:var(--mint);color:var(--green-900);display:grid;place-items:center;margin:0 auto 16px}
+.auth-icon svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.8}
+.auth-head h2{font:700 22px Manrope,sans-serif;letter-spacing:-.04em;margin:0 0 6px;color:var(--ink)}
+.auth-head p{font-size:12px;color:var(--muted);margin:0;line-height:1.5}
+.auth-form{display:flex;flex-direction:column;gap:18px}
+.auth-field{display:flex;flex-direction:column;gap:6px}
+.auth-field label{font-size:11px;font-weight:700;color:var(--ink)}
+.password-wrap{position:relative;display:flex;align-items:center}
+.password-wrap input{width:100%;padding-right:42px}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:#7e8b83}
+.password-toggle:hover{color:var(--green-900);background:#f0f4f0}
+.password-toggle svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+.form-alert{padding:11px 14px;border-radius:12px;font-size:11px;line-height:1.5;display:flex;align-items:center;gap:10px}
+.form-alert.error{background:var(--red-soft);border:1px solid #f2cfcf;color:var(--red)}
+.form-alert.success{background:var(--mint);border:1px solid #c8e4d3;color:var(--green-700)}
+.form-alert svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:20px 0 16px;color:#9aa59d;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+.auth-footer{margin-top:22px;text-align:center;font-size:11px;color:var(--muted)}
+.auth-footer a,.auth-footer button.link-btn{color:var(--green-700);font-weight:700;background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.auth-footer a:hover,.auth-footer button.link-btn:hover{color:var(--green-900)}
+.demo-quick-box{padding:13px 15px;background:var(--surface-soft);border:1px dashed var(--line);border-radius:14px;margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.demo-quick-box div{display:flex;flex-direction:column}
+.demo-quick-box strong{font-size:11px;color:var(--ink)}
+.demo-quick-box small{font-size:10px;color:var(--muted)}
+.dark-theme .auth-card{background:var(--surface);border-color:var(--line)}
+.dark-theme .auth-icon{background:#26372c;color:#a8e0c3}
+.dark-theme .demo-quick-box{background:#202c24;border-color:var(--line)}
+.dark-theme .password-toggle:hover{background:#29382e;color:var(--ink)}
+.dark-theme .form-alert.error{background:#3a2020;border-color:#5a2b2b;color:#f08585}
+.dark-theme .form-alert.success{background:#1f3529;border-color:#2a4d3a;color:#8ee0b1}
+
+

@@ -3,13 +3,14 @@
  * Uses Node.js native test runner (node:test) and supertest.
  * Run with: npm test
  */
-const { test, describe } = require('node:test');
+const { test, describe, after } = require('node:test');
 const assert = require('node:assert');
 const request = require('supertest');
 const app = require('../app');
+const db = require('../config/database');
 
 describe('Smart Focus Guardian - API Test Suite', () => {
-  const testDeviceId = 'LAMP_TEST_01';
+  const testDeviceId = 'LAMP_TEST_' + Date.now().toString(36);
   const validToken = process.env.DEVICE_SECRET_TOKEN || 'sfg_device_secret_2026';
   let createdCommandId = null;
 
@@ -299,5 +300,118 @@ describe('Smart Focus Guardian - API Test Suite', () => {
     assert.strictEqual(weeklyRes.statusCode, 200);
     assert.strictEqual(weeklyRes.body.success, true);
     assert.ok(Array.isArray(weeklyRes.body.data));
+  });
+
+  // Authentication & User Session Tests
+  const uniqueEmail = `test_user_${Date.now()}@example.com`;
+  let registeredUserToken = null;
+
+  test('POST /api/auth/register - registers new user, hashes password, and issues auth cookie', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Test Student',
+        email: uniqueEmail,
+        password: 'password123'
+      });
+
+    assert.strictEqual(res.statusCode, 201);
+    assert.strictEqual(res.body.success, true);
+    assert.ok(res.body.data.user);
+    assert.strictEqual(res.body.data.user.email, uniqueEmail);
+    assert.strictEqual(res.body.data.user.name, 'Test Student');
+    assert.ok(res.body.data.token, 'Should return JWT auth token');
+    assert.strictEqual(res.body.data.user.password_hash, undefined, 'Password hash must never be returned');
+
+    // Verify cookie
+    const cookies = res.headers['set-cookie'];
+    assert.ok(cookies, 'Set-Cookie header must be present');
+    assert.ok(cookies.some(c => c.includes('sfg_token')), 'Must set sfg_token cookie');
+
+    registeredUserToken = res.body.data.token;
+  });
+
+  test('POST /api/auth/register - rejects duplicate email with 409 Conflict', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Duplicate Student',
+        email: uniqueEmail,
+        password: 'password123'
+      });
+
+    assert.strictEqual(res.statusCode, 409);
+    assert.strictEqual(res.body.success, false);
+    assert.match(res.body.error, /already exists/i);
+  });
+
+  test('POST /api/auth/login - authenticates registered user and issues session token', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: uniqueEmail,
+        password: 'password123'
+      });
+
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.success, true);
+    assert.ok(res.body.data.user);
+    assert.strictEqual(res.body.data.user.email, uniqueEmail);
+    assert.ok(res.body.data.token);
+  });
+
+  test('POST /api/auth/login - authenticates seeded demo user (demo@smartfocusguardian.local)', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'demo@smartfocusguardian.local',
+        password: 'password123'
+      });
+
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.success, true);
+    assert.strictEqual(res.body.data.user.email, 'demo@smartfocusguardian.local');
+  });
+
+  test('POST /api/auth/login - rejects invalid password with 401 Unauthorized', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: uniqueEmail,
+        password: 'wrong_password_999'
+      });
+
+    assert.strictEqual(res.statusCode, 401);
+    assert.strictEqual(res.body.success, false);
+    assert.match(res.body.error, /invalid email or password/i);
+  });
+
+  test('GET /api/auth/me - rejects unauthenticated request with 401', async () => {
+    const res = await request(app).get('/api/auth/me');
+    assert.strictEqual(res.statusCode, 401);
+    assert.strictEqual(res.body.success, false);
+  });
+
+  test('GET /api/auth/me - returns user profile with Bearer authorization header', async () => {
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${registeredUserToken}`);
+
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.success, true);
+    assert.strictEqual(res.body.data.email, uniqueEmail);
+  });
+
+  test('POST /api/auth/logout - clears authentication cookie', async () => {
+    const res = await request(app).post('/api/auth/logout');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.success, true);
+    const cookies = res.headers['set-cookie'];
+    assert.ok(cookies, 'Set-Cookie should be present to clear cookie');
+    assert.ok(cookies.some(c => c.includes('sfg_token=;')), 'Must expire sfg_token cookie');
+  });
+
+  after(async () => {
+    await db.closePool();
   });
 });

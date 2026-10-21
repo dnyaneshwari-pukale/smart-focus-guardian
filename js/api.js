@@ -1,14 +1,10 @@
 /**
  * Smart Focus Guardian - Centralized API Service
  * Handles all HTTP REST communication between the frontend, Express backend,
- * and IoT devices. Supports automatic base URL detection, request timeouts,
- * graceful offline fallback, and structured error reporting.
+ * and IoT devices. Supports user authentication, session cookies,
+ * automatic base URL detection, request timeouts, and structured error reporting.
  */
 
-// Auto-detect backend base URL:
-// 1. Check localStorage override
-// 2. If running on same origin as Express server (e.g. :5000), use origin
-// 3. Otherwise default to http://localhost:5000
 function getInitialBaseUrl() {
   try {
     const custom = localStorage.getItem('sfg.apiUrl');
@@ -21,10 +17,19 @@ function getInitialBaseUrl() {
   return 'http://localhost:5000';
 }
 
+function getInitialUserToken() {
+  try {
+    return localStorage.getItem('sfg.token') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 export const API_CONFIG = {
   baseUrl: getInitialBaseUrl(),
   timeoutMs: 5000,
-  deviceToken: 'sfg_device_secret_2026'
+  deviceToken: 'sfg_device_secret_2026',
+  userToken: getInitialUserToken()
 };
 
 export function setApiBaseUrl(url) {
@@ -34,8 +39,23 @@ export function setApiBaseUrl(url) {
   } catch (e) {}
 }
 
+export function setUserToken(token) {
+  API_CONFIG.userToken = token || '';
+  try {
+    if (token) {
+      localStorage.setItem('sfg.token', token);
+    } else {
+      localStorage.removeItem('sfg.token');
+    }
+  } catch (e) {}
+}
+
+export function clearUserToken() {
+  setUserToken('');
+}
+
 /**
- * Standard HTTP Fetch Wrapper with timeout and error handling
+ * Standard HTTP Fetch Wrapper with timeout, authentication headers, cookies, and error handling
  */
 async function request(endpoint, options = {}) {
   const url = `${API_CONFIG.baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
@@ -44,11 +64,13 @@ async function request(endpoint, options = {}) {
 
   const headers = {
     'Content-Type': 'application/json',
+    ...(API_CONFIG.userToken ? { 'Authorization': `Bearer ${API_CONFIG.userToken}` } : {}),
     ...(options.headers || {})
   };
 
   try {
     const res = await fetch(url, {
+      credentials: 'include',
       ...options,
       headers,
       signal: controller.signal
@@ -87,6 +109,34 @@ export const API = {
     return request('/api/health');
   },
 
+  // Authentication
+  async register({ name, email, password }) {
+    return request('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password })
+    });
+  },
+  async login({ email, password }) {
+    return request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+  },
+  async logout() {
+    return request('/api/auth/logout', {
+      method: 'POST'
+    });
+  },
+  async getMe() {
+    return request('/api/auth/me');
+  },
+  async updateProfile(profileData) {
+    return request('/api/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    });
+  },
+
   // Devices
   async getDevices() {
     return request('/api/devices');
@@ -98,6 +148,17 @@ export const API = {
     return request('/api/devices', {
       method: 'POST',
       body: JSON.stringify(payload)
+    });
+  },
+  async updateDevice(deviceId, payload) {
+    return request(`/api/devices/${encodeURIComponent(deviceId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  },
+  async deleteDevice(deviceId) {
+    return request(`/api/devices/${encodeURIComponent(deviceId)}`, {
+      method: 'DELETE'
     });
   },
   async getDeviceStatus(deviceId) {
@@ -133,6 +194,9 @@ export const API = {
     return request(`/api/devices/${encodeURIComponent(deviceId)}/commands/pending`, {
       headers: { 'x-device-token': API_CONFIG.deviceToken }
     });
+  },
+  async getLampHistory(deviceId, limit = 20) {
+    return request(`/api/devices/${encodeURIComponent(deviceId)}/commands/history?limit=${limit}`);
   },
   async ackLampCommand(deviceId, commandId, { success = true, failureReason = null } = {}) {
     return request(`/api/devices/${encodeURIComponent(deviceId)}/commands/${encodeURIComponent(commandId)}/ack`, {
